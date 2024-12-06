@@ -44,6 +44,9 @@ func _physics_process(delta: float) -> void:
 	if Input.is_action_just_pressed(\"dash\") && dash_cooldown.is_stopped():
 		dash_cooldown.start()
 		dash_cast.target_position = Vector2(-45, 0)
+		var cast_point = dash_cast.get_collision_point()
+		print(cast_point)
+		#velocity.x = move_toward(cast_point, 0, SPEED * 3)
 	
 	move_and_slide()
 	
@@ -76,4 +79,7 @@ wait_time = 0.6
 one_shot = true
 
 [node name="DashRayCast" type="RayCast2D" parent="."]
-target_position = Vector2(45, 0)
+target_position = Vector2(75, 0)
+
+[node name="Node2D" type="Node2D" parent="DashRayCast"]
+position = Vector2(75, 0)
