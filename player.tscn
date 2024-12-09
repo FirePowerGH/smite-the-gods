@@ -6,23 +6,17 @@ script/source = "extends CharacterBody2D
 
 const SPEED = 100.0
 const JUMP_VELOCITY = -300.0
+const DASH_SPEED = 500.0
+const DASH_DURATION = 0.2
+
+var dash_direction = Vector2.ZERO
+var is_dashing = false
 
 @onready var coyote_time = $CoyoteTime
 @onready var dash_cooldown = $DashCooldown
-@onready var dash_cast = $DashRayCast
 
 func _physics_process(delta: float) -> void:
-	# Add the gravity.
-	if not is_on_floor():
-		velocity += get_gravity() * delta
-
-	# Handle jump + coyote time.
-	if Input.is_action_just_pressed(\"jump\") && (is_on_floor() || !coyote_time.is_stopped()):
-		velocity.y = JUMP_VELOCITY
-
 	# Get the input direction and handle the movement/deceleration.
-	#var direction := Input.get_axis(\"left\", \"right\")
-	
 	var direction = Vector2.ZERO
 	
 	if Input.is_action_pressed(\"right\"):
@@ -33,25 +27,45 @@ func _physics_process(delta: float) -> void:
 		direction.y = -1
 	elif Input.is_action_pressed(\"down\"):
 		direction.y = 1
-		
-	if direction:
-		velocity.x = direction.x * SPEED
-	else:
-		velocity.x = move_toward(velocity.x, 0, SPEED)
 	
-	var was_on_floor = is_on_floor()
+	direction = direction.normalized()
 	
 	if Input.is_action_just_pressed(\"dash\") && dash_cooldown.is_stopped():
 		dash_cooldown.start()
-		dash_cast.target_position = Vector2(-45, 0)
-		var cast_point = dash_cast.get_collision_point()
-		print(cast_point)
-		#velocity.x = move_toward(cast_point, 0, SPEED * 3)
+		
+		is_dashing = true
+		velocity = dash_direction * DASH_SPEED
+		dash_direction = direction
+		
+		get_tree().create_timer(DASH_DURATION)
+		
+		is_dashing = false
+	
+	# Add the gravity.
+	if not is_on_floor():
+		velocity += get_gravity() * delta
+
+	# Handle jump + coyote time.
+	if Input.is_action_just_pressed(\"jump\") && (is_on_floor() || !coyote_time.is_stopped()):
+		velocity.y = JUMP_VELOCITY
+	
+	# Get the input direction and handle the movement/deceleration
+	var target_velocity = Vector2.ZERO
+	if direction:
+		target_velocity.x = direction.x * SPEED
+	else:
+		target_velocity.x = move_toward(velocity.x, 0, SPEED)
+		
+	velocity.x = target_velocity.x
+	
+	var was_on_floor = is_on_floor()
 	
 	move_and_slide()
 	
 	if was_on_floor && !is_on_floor():
 		coyote_time.start()
+	
+
 
 func _ready():
 	pass
@@ -78,8 +92,4 @@ one_shot = true
 wait_time = 0.6
 one_shot = true
 
-[node name="DashRayCast" type="RayCast2D" parent="."]
-target_position = Vector2(75, 0)
-
-[node name="Node2D" type="Node2D" parent="DashRayCast"]
-position = Vector2(75, 0)
+[node name="Camera2D" type="Camera2D" parent="."]
