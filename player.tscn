@@ -11,12 +11,57 @@ const DASH_DURATION = 0.2
 
 var dash_direction = Vector2.ZERO
 var is_dashing = false
+var can_dash = false
 
 @onready var coyote_time = $CoyoteTime
 @onready var dash_cooldown = $DashCooldown
 
 func _physics_process(delta: float) -> void:
 	# Get the input direction and handle the movement/deceleration.
+	var direction = get_input_direction()
+	
+	if Input.is_action_just_pressed(\"dash\") && dash_cooldown.is_stopped():
+		start_dash(direction)
+	
+	if !is_dashing:
+		handle_movement(direction)
+	
+	# Add the gravity.
+	if not is_on_floor():
+		velocity += get_gravity() * delta
+
+	# Handle jump + coyote time.
+	if Input.is_action_just_pressed(\"jump\") && (is_on_floor() || !coyote_time.is_stopped()):
+		velocity.y = JUMP_VELOCITY
+
+	var was_on_floor = is_on_floor()
+	
+	move_and_slide()
+	
+	if was_on_floor && !is_on_floor():
+		coyote_time.start()
+
+func start_dash(direction):
+	dash_direction = direction
+	is_dashing = true
+	can_dash = false
+	velocity = dash_direction * DASH_SPEED
+	dash_cooldown.start(DASH_DURATION)
+
+func _on_DashCooldown_timeout():
+	is_dashing = false
+	can_dash = true
+
+func handle_movement(direction):
+	var target_velocity = Vector2.ZERO
+	if direction:
+		target_velocity.x = direction.x * SPEED
+	else:
+		target_velocity.x = move_toward(velocity.x, 0, SPEED)
+		
+	velocity.x = target_velocity.x
+
+func get_input_direction():
 	var direction = Vector2.ZERO
 	
 	if Input.is_action_pressed(\"right\"):
@@ -30,42 +75,7 @@ func _physics_process(delta: float) -> void:
 	
 	direction = direction.normalized()
 	
-	if Input.is_action_just_pressed(\"dash\") && dash_cooldown.is_stopped():
-		dash_cooldown.start()
-		
-		is_dashing = true
-		velocity = dash_direction * DASH_SPEED
-		dash_direction = direction
-		
-		get_tree().create_timer(DASH_DURATION)
-		
-		is_dashing = false
-	
-	# Add the gravity.
-	if not is_on_floor():
-		velocity += get_gravity() * delta
-
-	# Handle jump + coyote time.
-	if Input.is_action_just_pressed(\"jump\") && (is_on_floor() || !coyote_time.is_stopped()):
-		velocity.y = JUMP_VELOCITY
-	
-	# Get the input direction and handle the movement/deceleration
-	var target_velocity = Vector2.ZERO
-	if direction:
-		target_velocity.x = direction.x * SPEED
-	else:
-		target_velocity.x = move_toward(velocity.x, 0, SPEED)
-		
-	velocity.x = target_velocity.x
-	
-	var was_on_floor = is_on_floor()
-	
-	move_and_slide()
-	
-	if was_on_floor && !is_on_floor():
-		coyote_time.start()
-	
-
+	return direction
 
 func _ready():
 	pass
@@ -85,11 +95,11 @@ polygon = PackedVector2Array(0, 12, 4, 12, 6, 11, 7, 9, 7, -9, 6, -11, 4, -12, -
 shape = SubResource("RectangleShape2D_gen0f")
 
 [node name="CoyoteTime" type="Timer" parent="."]
-wait_time = 0.15
+wait_time = 0.25
 one_shot = true
 
 [node name="DashCooldown" type="Timer" parent="."]
-wait_time = 0.6
+wait_time = 0.25
 one_shot = true
 
 [node name="Camera2D" type="Camera2D" parent="."]
